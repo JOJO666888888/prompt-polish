@@ -5,7 +5,8 @@
  * - 优化面板          → conversation.input.dock（输入框上方）
  * - 「📋 日志」按钮   → sidebar.footer.action（侧边栏底部）
  * - 日志浮层          → shell.overlay（右上角浮动面板）
- * - host 通信         → 同源 fetch：POST /pp-api/polish、GET /pp-api/logs
+ * - 设置专区          → settings.section（dsh 设置面板内的独立分区）
+ * - host 通信         → 同源 fetch：POST /pp-api/polish、GET /pp-api/logs、GET/POST /pp-api/config
  */
 window.__ModuleLoader__.load({
   id: 'prompt-polish',
@@ -53,7 +54,38 @@ window.__ModuleLoader__.load({
       '.pp-logdetail{font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-all;white-space:pre-wrap}',
       '.pp-health{display:flex;flex-direction:column;gap:2px;font-size:12px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:6px 8px;background:var(--dsw-alias-bg-layer-2)}',
       '.pp-hrow.err{color:var(--dsw-alias-state-error-primary)}',
-      '.pp-logempty{color:var(--dsw-alias-label-secondary);font-size:12px;padding:8px}'
+      '.pp-logempty{color:var(--dsw-alias-label-secondary);font-size:12px;padding:8px}',
+      '.pp-settings{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.pp-setting-row{display:flex;align-items:center;gap:8px;font-size:12px}',
+      '.pp-setting-label{flex:none;width:90px;color:var(--dsw-alias-label-secondary)}',
+      '.pp-setting-input{flex:1;min-width:0;padding:4px 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;box-sizing:border-box}',
+      '.pp-setting-input:focus{outline:1px solid var(--dsw-alias-brand-primary)}',
+      '.pp-setting-toggle{padding:3px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-size:12px;cursor:pointer}',
+      '.pp-setting-toggle.on{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
+      '.pp-setting-hint{font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.5}',
+      '.pp-badge{padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600}',
+      '.pp-badge.custom{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}',
+      '.pp-badge.dsh{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary)}',
+      '.pp-settings-page{display:flex;flex-direction:column;gap:16px;padding:4px 0;width:100%}',
+      '.pp-settings-page-title{font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary)}',
+      '.pp-settings-page-desc{font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary)}',
+      '.pp-settings-card{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1)}',
+      '.pp-settings-card-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}',
+      '.pp-field{display:flex;flex-direction:column;gap:6px}',
+      '.pp-field-label{font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary)}',
+      '.pp-field-hint{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}',
+      '.pp-field-input{width:100%;padding:8px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;box-sizing:border-box}',
+      '.pp-field-input:focus{outline:1px solid var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}',
+      '.pp-field-row{display:flex;align-items:center;gap:12px}',
+      '.pp-switch{padding:6px 14px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-size:13px;cursor:pointer;font-weight:500}',
+      '.pp-switch.on{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-1)}',
+      '.pp-status-row{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 12px;border-radius:8px;background:var(--dsw-alias-bg-layer-2)}',
+      '.pp-status-dot{width:8px;height:8px;border-radius:50%;flex:none}',
+      '.pp-status-dot.on{background:var(--dsw-alias-state-success-primary)}',
+      '.pp-status-dot.off{background:var(--dsw-alias-label-tertiary)}',
+      '.pp-presets{display:flex;gap:8px;flex-wrap:wrap}',
+      '.pp-preset{padding:4px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:12px;cursor:pointer}',
+      '.pp-preset:hover{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}'
     ].join('\n')
 
     /* ── client 日志 ─────────────────────────────────────────────── */
@@ -84,7 +116,7 @@ window.__ModuleLoader__.load({
     }
 
     /* ── 共享 store ──────────────────────────────────────────────── */
-    var store = { open: false, busy: false, error: null, history: [], index: 0, currentEdit: '', applied: false, logOpen: false, hostLogs: [], hostHealth: null, logLoading: false, logError: null }
+    var store = { open: false, busy: false, error: null, history: [], index: 0, currentEdit: '', applied: false, logOpen: false, hostLogs: [], hostHealth: null, logLoading: false, logError: null, settingsOpen: false, settingsLoading: false, settingsSaving: false, settingsError: null, config: null }
     var version = 0
     var listeners = new Set()
 
@@ -125,6 +157,48 @@ window.__ModuleLoader__.load({
     }
 
     /* ── 润色流程 ────────────────────────────────────────────────── */
+    async function refreshConfig() {
+      store.settingsLoading = true
+      store.settingsError = null
+      emit()
+      try {
+        var res = await fetchJson('/pp-api/config', { method: 'GET' }, 10000)
+        var payload = null
+        try { payload = await res.json() } catch (e) { payload = null }
+        if (!res.ok || !payload) throw new Error((payload && payload.error) ? payload.error : ('HTTP ' + res.status))
+        store.config = payload
+        clog('info', '配置拉取成功: customApi.enabled=' + (payload.customApi && payload.customApi.enabled) + ' model=' + (payload.customApi && payload.customApi.model))
+      } catch (err) {
+        store.settingsError = (err && err.message) ? err.message : String(err)
+        clog('error', '配置拉取失败: ' + store.settingsError)
+      }
+      store.settingsLoading = false
+      emit()
+    }
+
+    async function saveConfigClient(cfg) {
+      store.settingsSaving = true
+      store.settingsError = null
+      emit()
+      try {
+        var res = await fetchJson('/pp-api/config', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ customApi: cfg })
+        }, 10000)
+        var payload = null
+        try { payload = await res.json() } catch (e) { payload = null }
+        if (!res.ok || !payload) throw new Error((payload && payload.error) ? payload.error : ('HTTP ' + res.status))
+        clog('info', '配置保存成功')
+        await refreshConfig()
+      } catch (err) {
+        store.settingsError = (err && err.message) ? err.message : String(err)
+        clog('error', '配置保存失败: ' + store.settingsError)
+      }
+      store.settingsSaving = false
+      emit()
+    }
+
     async function runPolish(baseText, rounds, instruction, mode, applyDraft) {
       if (store.busy) return
       store.open = true
@@ -227,6 +301,235 @@ window.__ModuleLoader__.load({
       return React.createElement('button', { className: 'pp-trigger', onClick: onClick, disabled: !canStart, title: canStart ? '调用提示词优化 agent 润色当前草稿（支持重写、多轮改写、撤回）' : '请先在输入框输入内容' }, '✨ 润色')
     }
 
+    function SettingsView(props) {
+      useStoreVersion()
+      if (!store.settingsOpen) return null
+      var cfg = store.config && store.config.customApi ? store.config.customApi : { enabled: false, baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o', maxTokens: 8192 }
+      /* 本地编辑态 */
+      var editState = React.useState({ baseUrl: cfg.baseUrl, apiKey: cfg.hasApiKey ? cfg.apiKey : '', model: cfg.model, maxTokens: cfg.maxTokens })
+      var edit = editState[0]
+      var setEdit = editState[1]
+      var enabledState = React.useState(cfg.enabled)
+      var enabled = enabledState[0]
+      var setEnabled = enabledState[1]
+
+      var saving = store.settingsSaving
+      var err = store.settingsError ? React.createElement('div', { className: 'pp-err' }, '⚠ ' + store.settingsError) : null
+
+      var onSave = function () {
+        saveConfigClient({
+          enabled: enabled,
+          baseUrl: edit.baseUrl,
+          apiKey: edit.apiKey,
+          model: edit.model,
+          maxTokens: edit.maxTokens
+        })
+      }
+      var onTest = function () {
+        /* 临时启用并润色一个简单测试文本 */
+        saveConfigClient({
+          enabled: true,
+          baseUrl: edit.baseUrl,
+          apiKey: edit.apiKey,
+          model: edit.model,
+          maxTokens: edit.maxTokens
+        }).then(function () {
+          runPolish('请把这句话优化为更清晰的指令：帮我写一个 Python 函数', 1, '', 'session', function (text) { props.inputActions.setDraft(text) })
+        })
+      }
+
+      return React.createElement('div', { className: 'pp-settings' },
+        React.createElement('div', { className: 'pp-head' },
+          React.createElement('span', { className: 'pp-title' }, '⚙️ 自定义 API 设置'),
+          React.createElement('button', { className: 'pp-btn', onClick: function () { store.settingsOpen = false; emit() } }, '✕')
+        ),
+          React.createElement('div', { className: 'pp-setting-hint' }, '💡 也可在 dsh 设置面板的「✨ 提示词优化」分区中配置（侧边栏 ⚙️ 设置 → ✨ 提示词优化）。'),
+        err,
+        React.createElement('div', { className: 'pp-setting-row' },
+          React.createElement('span', { className: 'pp-setting-label' }, '启用'),
+          React.createElement('button', {
+            className: 'pp-setting-toggle' + (enabled ? ' on' : ''),
+            onClick: function () { setEnabled(!enabled) }
+          }, enabled ? '✅ 已启用自定义 API' : '⬜ 使用 dsh 内置路由')
+        ),
+        React.createElement('div', { className: 'pp-setting-hint' }, '启用后，润色请求将直接发送到你配置的 OpenAI 兼容 API（支持 OpenAI / DeepSeek / Azure / Ollama / vLLM / LM Studio 等），不再走 dsh 内置模型路由。'),
+        React.createElement('div', { className: 'pp-setting-row' },
+          React.createElement('span', { className: 'pp-setting-label' }, 'API 地址'),
+          React.createElement('input', {
+            className: 'pp-setting-input',
+            type: 'text',
+            value: edit.baseUrl,
+            placeholder: 'https://api.openai.com/v1',
+            onChange: function (e) { setEdit(Object.assign({}, edit, { baseUrl: e.target.value })) }
+          })
+        ),
+        React.createElement('div', { className: 'pp-setting-hint' }, 'OpenAI 兼容 API 的 base URL，插件会自动拼接 /chat/completions。例如：https://api.openai.com/v1 、https://api.deepseek.com/v1 、http://localhost:11434/v1'),
+        React.createElement('div', { className: 'pp-setting-row' },
+          React.createElement('span', { className: 'pp-setting-label' }, 'API Key'),
+          React.createElement('input', {
+            className: 'pp-setting-input',
+            type: 'password',
+            value: edit.apiKey,
+            placeholder: 'sk-...',
+            onChange: function (e) { setEdit(Object.assign({}, edit, { apiKey: e.target.value })) }
+          })
+        ),
+        React.createElement('div', { className: 'pp-setting-hint' }, 'Bearer Token 认证密钥。Ollama 等本地服务可留空。'),
+        React.createElement('div', { className: 'pp-setting-row' },
+          React.createElement('span', { className: 'pp-setting-label' }, '模型名称'),
+          React.createElement('input', {
+            className: 'pp-setting-input',
+            type: 'text',
+            value: edit.model,
+            placeholder: 'gpt-4o',
+            onChange: function (e) { setEdit(Object.assign({}, edit, { model: e.target.value })) }
+          })
+        ),
+        React.createElement('div', { className: 'pp-setting-hint' }, '模型 ID，例如：gpt-4o、gpt-4o-mini、deepseek-chat、deepseek-reasoner、llama3.1 等'),
+        React.createElement('div', { className: 'pp-setting-row' },
+          React.createElement('span', { className: 'pp-setting-label' }, '最大 Tokens'),
+          React.createElement('input', {
+            className: 'pp-setting-input',
+            type: 'number',
+            value: edit.maxTokens,
+            onChange: function (e) { setEdit(Object.assign({}, edit, { maxTokens: parseInt(e.target.value, 10) || 8192 })) }
+          })
+        ),
+        React.createElement('div', { className: 'pp-actions' },
+          React.createElement('button', { className: 'pp-btn primary', onClick: onSave, disabled: saving }, saving ? '保存中…' : '💾 保存配置'),
+          React.createElement('button', { className: 'pp-btn', onClick: onTest, disabled: saving || store.busy }, '🧪 保存并测试'),
+          React.createElement('button', { className: 'pp-btn', onClick: function () { store.settingsOpen = false; emit() } }, '关闭')
+        )
+      )
+    }
+
+    /* ── dsh 设置面板专区组件 ─────────────────────────────────────── */
+    var PRESETS = [
+      { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
+      { name: 'OpenAI mini', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+      { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+      { name: 'DeepSeek R1', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-reasoner' },
+      { name: 'Ollama', baseUrl: 'http://localhost:11434/v1', model: 'llama3.1' },
+      { name: 'vLLM', baseUrl: 'http://localhost:8000/v1', model: '' },
+      { name: 'LM Studio', baseUrl: 'http://localhost:1234/v1', model: '' }
+    ]
+
+    function SettingsSectionView(props) {
+      useStoreVersion()
+      /* 首次渲染时拉取配置 */
+      React.useEffect(function () {
+        if (!store.config) refreshConfig()
+      }, [])
+
+      var cfg = store.config && store.config.customApi ? store.config.customApi : { enabled: false, baseUrl: 'https://api.openai.com/v1', apiKey: '', hasApiKey: false, model: 'gpt-4o', maxTokens: 8192 }
+      var editState = React.useState({ baseUrl: cfg.baseUrl, apiKey: cfg.hasApiKey ? cfg.apiKey : '', model: cfg.model, maxTokens: cfg.maxTokens })
+      var edit = editState[0]
+      var setEdit = editState[1]
+      var enabledState = React.useState(cfg.enabled)
+      var enabled = enabledState[0]
+      var setEnabled = enabledState[1]
+
+      var saving = store.settingsSaving
+      var loading = store.settingsLoading
+      var err = store.settingsError ? React.createElement('div', { className: 'pp-err' }, '⚠ ' + store.settingsError) : null
+
+      var onSave = function () {
+        saveConfigClient({ enabled: enabled, baseUrl: edit.baseUrl, apiKey: edit.apiKey, model: edit.model, maxTokens: edit.maxTokens })
+      }
+      var applyPreset = function (p) {
+        setEdit(Object.assign({}, edit, { baseUrl: p.baseUrl, model: p.model || edit.model }))
+      }
+
+      /* 状态指示 */
+      var statusRow = React.createElement('div', { className: 'pp-status-row' },
+        React.createElement('span', { className: 'pp-status-dot ' + (enabled ? 'on' : 'off') }),
+        React.createElement('span', null, enabled
+          ? '已启用自定义 API — 润色请求将发送到 ' + edit.baseUrl + ' / ' + edit.model
+          : '未启用 — 当前使用 dsh 内置模型路由（' + (store.hostHealth && store.hostHealth.defaultModel ? (store.hostHealth.defaultModel.provider || '?') + ' / ' + (store.hostHealth.defaultModel.model || '?') : '未知') + '）')
+      )
+
+      return React.createElement('div', { className: 'pp-settings-page' },
+        React.createElement('div', { className: 'pp-settings-page-title' }, '✨ 提示词优化'),
+        React.createElement('div', { className: 'pp-settings-page-desc' }, '配置润色功能使用的模型。可以启用自定义 OpenAI 兼容 API（支持 OpenAI / DeepSeek / Azure / Ollama / vLLM / LM Studio 等），或保持未启用以使用 dsh 内置模型路由。'),
+        err,
+        /* 启用开关 */
+        React.createElement('div', { className: 'pp-settings-card' },
+          React.createElement('div', { className: 'pp-settings-card-title' }, '模型来源'),
+          statusRow,
+          React.createElement('div', { className: 'pp-field-row' },
+            React.createElement('button', {
+              className: 'pp-switch' + (enabled ? ' on' : ''),
+              onClick: function () { setEnabled(!enabled) }
+            }, enabled ? '✅ 自定义 API' : '⬜ dsh 内置路由')
+          )
+        ),
+        /* API 配置 */
+        React.createElement('div', { className: 'pp-settings-card' },
+          React.createElement('div', { className: 'pp-settings-card-title' }, 'API 配置'),
+          /* 预设 */
+          React.createElement('div', { className: 'pp-field' },
+            React.createElement('span', { className: 'pp-field-label' }, '快速预设'),
+            React.createElement('div', { className: 'pp-presets' },
+              PRESETS.map(function (p) {
+                return React.createElement('button', { key: p.name, className: 'pp-preset', onClick: function () { applyPreset(p) }, title: p.baseUrl + ' / ' + (p.model || '…') }, p.name)
+              })
+            )
+          ),
+          /* API 地址 */
+          React.createElement('div', { className: 'pp-field' },
+            React.createElement('label', { className: 'pp-field-label' }, 'API 地址（Base URL）'),
+            React.createElement('input', {
+              className: 'pp-field-input',
+              type: 'text',
+              value: edit.baseUrl,
+              placeholder: 'https://api.openai.com/v1',
+              onChange: function (e) { setEdit(Object.assign({}, edit, { baseUrl: e.target.value })) }
+            }),
+            React.createElement('div', { className: 'pp-field-hint' }, 'OpenAI 兼容 API 的 base URL，插件会自动拼接 /chat/completions')
+          ),
+          /* API Key */
+          React.createElement('div', { className: 'pp-field' },
+            React.createElement('label', { className: 'pp-field-label' }, 'API Key'),
+            React.createElement('input', {
+              className: 'pp-field-input',
+              type: 'password',
+              value: edit.apiKey,
+              placeholder: 'sk-...（Ollama 等本地服务可留空）',
+              onChange: function (e) { setEdit(Object.assign({}, edit, { apiKey: e.target.value })) }
+            }),
+            React.createElement('div', { className: 'pp-field-hint' }, 'Bearer Token 认证密钥。已保存的 Key 不会明文显示，留空则保持原值不变。')
+          ),
+          /* 模型名称 */
+          React.createElement('div', { className: 'pp-field' },
+            React.createElement('label', { className: 'pp-field-label' }, '模型名称'),
+            React.createElement('input', {
+              className: 'pp-field-input',
+              type: 'text',
+              value: edit.model,
+              placeholder: 'gpt-4o',
+              onChange: function (e) { setEdit(Object.assign({}, edit, { model: e.target.value })) }
+            }),
+            React.createElement('div', { className: 'pp-field-hint' }, '模型 ID，例如：gpt-4o、deepseek-chat、deepseek-reasoner、llama3.1、qwen2.5')
+          ),
+          /* 最大 Tokens */
+          React.createElement('div', { className: 'pp-field' },
+            React.createElement('label', { className: 'pp-field-label' }, '最大输出 Tokens'),
+            React.createElement('input', {
+              className: 'pp-field-input',
+              type: 'number',
+              value: edit.maxTokens,
+              onChange: function (e) { setEdit(Object.assign({}, edit, { maxTokens: parseInt(e.target.value, 10) || 8192 })) }
+            })
+          )
+        ),
+        /* 保存按钮 */
+        React.createElement('div', { className: 'pp-actions' },
+          React.createElement('button', { className: 'pp-btn primary', onClick: onSave, disabled: saving || loading }, saving ? '保存中…' : '💾 保存配置'),
+          React.createElement('span', { className: 'pp-tip' }, '保存后立即生效，无需重启 dsh')
+        )
+      )
+    }
+
     function PanelView(props) {
       useStoreVersion()
       if (!store.open) return null
@@ -260,14 +563,30 @@ window.__ModuleLoader__.load({
         refreshHostLogs()
         emit()
       }
+      var openSettings = function () {
+        store.settingsOpen = !store.settingsOpen
+        clog('info', '设置面板 ' + (store.settingsOpen ? '打开' : '关闭'))
+        if (store.settingsOpen) refreshConfig()
+        emit()
+      }
+      var routeBadge = null
+      if (store.hostHealth && store.hostHealth.customApi) {
+        var ca = store.hostHealth.customApi
+        routeBadge = ca.enabled
+          ? React.createElement('span', { className: 'pp-badge custom', title: '自定义 API: ' + ca.baseUrl + ' / ' + ca.model }, '自定义 API')
+          : React.createElement('span', { className: 'pp-badge dsh', title: '使用 dsh 内置模型路由' }, 'dsh 路由')
+      }
       return React.createElement('div', { className: 'pp-panel' },
         React.createElement('div', { className: 'pp-head' },
           React.createElement('span', { className: 'pp-title' }, '✨ 提示词优化'),
+          routeBadge,
           status,
           applied,
+          React.createElement('button', { className: 'pp-btn', onClick: openSettings, title: '自定义 API 设置' }, '⚙️ 设置'),
           React.createElement('button', { className: 'pp-btn', onClick: openLogs, title: '打开插件日志面板' }, '📋 日志')
         ),
         err,
+        React.createElement(SettingsView, props),
         React.createElement('div', { className: 'pp-chips' }, chips),
         React.createElement('textarea', { className: 'pp-box', value: store.currentEdit, disabled: store.busy, spellCheck: false, onChange: function (e) { store.currentEdit = e.target.value; store.applied = false; emit() } }),
         React.createElement('div', { className: 'pp-actions' },
@@ -322,6 +641,10 @@ window.__ModuleLoader__.load({
         }
         if (health.llmProviders && health.llmProviders.length) {
           healthRows.push(React.createElement('div', { className: 'pp-hrow' }, 'LLM providers: ' + health.llmProviders.join(', ')))
+        }
+        if (health.customApi) {
+          var ca = health.customApi
+          healthRows.push(React.createElement('div', { className: 'pp-hrow' }, '自定义 API: ' + (ca.enabled ? '✅ 已启用' : '⬜ 未启用') + ' | ' + ca.baseUrl + ' / ' + ca.model + (ca.hasApiKey ? ' (key ✓)' : ' (key ✗)')))
         }
         if (health.lastError) {
           healthRows.push(React.createElement('div', { className: 'pp-hrow err' }, '最近错误: ' + health.lastError))
@@ -379,6 +702,12 @@ window.__ModuleLoader__.load({
           return React.createElement(LogPanelView, props)
         })
       })
+        slots.inject('settings.section', function () {
+          clog('info', 'slots 注入: settings.section')
+          return slots.register({ name: 'settings.section', id: 'prompt-polish', order: 20, label: '✨ 提示词优化' }, function (props) {
+            return React.createElement(SettingsSectionView, props)
+          })
+        })
       clog('info', 'client bundle 初始化完成')
     }
 

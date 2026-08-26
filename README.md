@@ -17,6 +17,7 @@
 - **手动微调**：面板内结果可自由编辑后再应用
 - **应用并发送**：一步完成「写入输入框 + 直接发送」
 - **内置日志系统**：侧边栏底部「📋 日志」按钮打开浮层面板，host/client 双侧诊断日志 + 健康状态（接口状态、模型路由、最近错误），问题可自排查
+- **自定义 API 配置**：支持配置任意 OpenAI 兼容 API（OpenAI / DeepSeek / Azure OpenAI / Ollama / vLLM / LM Studio 等），自定义 API 地址、密钥、模型名，不再绑定 dsh 内置模型路由
 - **零构建**：client 端为手写 `window.__ModuleLoader__` bundle，无需任何构建工具链
 
 ## 🧩 工作原理
@@ -34,6 +35,8 @@
 │ POST /pp-api/polish   调用 llm.stream 跑「提示词优化专家」agent    │
 │                       模型路由：agentDefaultModel 当前默认选择     │
 │                       （如 opencode-go / deepseek-v4-flash）      │
+│ POST /pp-api/config   保存/读取自定义 API 配置（OpenAI 兼容）      │
+│ GET  /pp-api/config   返回当前配置（apiKey 脱敏）                  │
 │ GET  /pp-api/logs     返回日志缓冲 + 健康诊断                      │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -107,8 +110,51 @@ node -e "console.log(require.resolve('prompt-polish/package.json'))"
 点击侧边栏底部 **「📋 日志」**（或优化面板头部的 📋 按钮）打开日志面板：
 
 - 合并显示 host / client 双侧日志（按时间倒序，错误红色高亮）
-- 健康状态区：接口状态、成功/失败计数、默认模型、LLM providers、最近错误
+- 健康状态区：接口状态、成功/失败计数、默认模型、LLM providers、自定义 API 状态、最近错误
 - 「🔄 刷新」重新拉取 host 日志，「🗑 清空」清空 client 侧记录
+
+### ⚙️ 自定义 API 配置
+
+有两种方式配置自定义 API：
+
+**方式一：dsh 设置面板（推荐）**
+
+打开侧边栏的 **⚙️ 设置** → 左侧导航找到 **「✨ 提示词优化」** 分区，直接配置 API 参数。配置保存在 `~/.dsh/plugins/prompt-polish.json`，保存后立即生效，无需重启。
+
+设置面板内提供快速预设按钮（OpenAI / DeepSeek / Ollama / vLLM / LM Studio 等），一键填入对应的 API 地址和模型名。
+
+**方式二：润色面板内快捷设置**
+
+点击优化面板头部的 **「⚙️ 设置」** 按钮，可在润色时快速修改配置（同样引导至设置面板）。
+
+**配置字段说明**：
+
+| 字段 | 说明 | 示例 |
+| --- | --- | --- |
+| 启用 | 开关：启用自定义 API / 回退到 dsh 内置路由 | ✅ 已启用自定义 API |
+| API 地址 | OpenAI 兼容 API 的 base URL（自动拼接 `/chat/completions`） | `https://api.openai.com/v1` |
+| API Key | Bearer Token 认证密钥（Ollama 等本地服务可留空） | `sk-...` |
+| 模型名称 | 模型 ID | `gpt-4o`、`deepseek-chat`、`llama3.1` |
+| 最大 Tokens | 输出上限 | `8192` |
+
+**常见 API 配置示例**：
+
+| 服务 | API 地址 | 模型名称 |
+| --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o` / `gpt-4o-mini` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` / `deepseek-reasoner` |
+| Azure OpenAI | `https://{resource}.openai.azure.com/openai/deployments/{deployment}` | `{deployment-name}` |
+| Ollama (本地) | `http://localhost:11434/v1` | `llama3.1` / `qwen2.5` |
+| vLLM (本地) | `http://localhost:8000/v1` | `{model-id}` |
+| LM Studio | `http://localhost:1234/v1` | `{loaded-model}` |
+
+操作按钮：
+- **💾 保存配置**：保存到 `~/.dsh/plugins/prompt-polish.json`，立即生效，无需重启
+- **🧪 保存并测试**：保存后自动用一段测试文本触发润色，验证 API 是否可用
+
+> 配置文件路径：`~/.dsh/plugins/prompt-polish.json`
+>
+> 未启用自定义 API 时，插件自动回退到 dsh 内置模型路由（`agentDefaultModel`），完全向后兼容。
 
 常见问题：
 
@@ -117,7 +163,10 @@ node -e "console.log(require.resolve('prompt-polish/package.json'))"
 | 没有「✨ 润色」按钮 | 未刷新浏览器（Ctrl+Shift+R）；或组合行未生效（检查 `cordis.patch.yml`） |
 | 按钮置灰不可点 | 输入框为空 |
 | 点击后无反应 | 打开日志面板查看错误；确认 `/pp-api/polish` 接口可访问（见下） |
-| 提示「无法解析可用的模型路由」 | dsh 未配置默认模型，在 Models 设置页选择模型后重试 |
+| 提示「无法解析可用的模型路由」 | dsh 未配置默认模型，在 Models 设置页选择模型后重试；或启用自定义 API 配置 |
+| 自定义 API 报错 HTTP 401/403 | API Key 不正确，检查设置面板中的密钥 |
+| 自定义 API 报错 HTTP 404 | API 地址或模型名称不正确，确认 base URL 和 model ID |
+| 自定义 API 连接超时 | 检查 API 地址是否可达、网络代理设置、防火墙 |
 
 接口自检：
 
@@ -126,6 +175,8 @@ curl -X POST http://127.0.0.1:8080/pp-api/polish -H "content-type: application/j
 # 期望返回 500 + {"error":"prompt-polish: 输入文本为空"}（说明接口已注册）
 curl http://127.0.0.1:8080/pp-api/logs
 # 期望返回 {"logs":[...],"health":{...}}
+curl http://127.0.0.1:8080/pp-api/config
+# 期望返回 {"customApi":{"enabled":false,"baseUrl":"https://api.openai.com/v1","apiKey":"","hasApiKey":false,"model":"gpt-4o","maxTokens":8192}}
 ```
 
 ## 🗑 卸载
