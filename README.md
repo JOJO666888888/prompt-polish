@@ -43,57 +43,51 @@
 
 - **Host 半**（`index.js`）：普通 Cordis 插件，通过 `webServer.register` 暴露两个同源 HTTP 接口（避开 `/api` 前缀）；`llm.stream` 调用支持多轮迭代（每轮基于上一轮结果），带 120s 超时保护。
 - **Client 半**（`client.js`）：手写 `window.__ModuleLoader__.load({ id, factory })` 格式的浏览器 bundle（与 dsh 产品级 client 插件同构），通过 `package.json` 的 `dsh.client` 声明被 `dsh-client-modules` 扫描并 serve（`/plugins/prompt-polish/client.js`），无需构建。
-- **持久化**：插件作为一行注册在 profile 组合（`cordis.patch.yml`）中，harness 启动即挂载；区别于动态 Cordis 插件，重启后依然存在。
+- **持久化**：插件自带 `dsh.bundle` 声明（`cordis.patch.yml`），`dsh plugin add` 后自动注册为 profile 组合中的一行，harness 启动即挂载；区别于动态 Cordis 插件，重启后依然存在。
 
 ## 📦 安装
 
 ### 环境要求
 
-- dsh（DeepSeek Harness）**web 模式**（`dsh --profile web`）
+- dsh（DeepSeek Harness）**web 模式**（`dsh --profile web`）≥ 0.1.1-rc.2
 - Node.js（dsh 运行环境自带）
 - 一个可用的 LLM 模型路由（插件自动使用你在 dsh 中配置的**默认模型**，无需单独配置）
 
-### 步骤 1：获取插件代码
+### 一键安装（推荐）
+
+插件自带 `dsh.bundle` 声明（`cordis.patch.yml`），`dsh plugin add` 会自动安装并把 host 半注册进 profile 组合，**无需手动编辑任何配置文件**：
 
 ```bash
-git clone https://github.com/JOJO666888888/prompt-polish.git
-# 或从仓库页面 Download ZIP 解压
+dsh plugin --profile web add github:JOJO666888888/prompt-polish
 ```
 
-### 步骤 2：放置到 dsh 的 node_modules
-
-dsh 通过 `require.resolve('prompt-polish/package.json')` 定位插件，因此 **`prompt-polish` 目录必须放在 dsh 包（`@deepseek-ai/dsh`）所在的那一层 `node_modules` 根目录下**（与 `@deepseek-ai` 平级）。
-
-```bash
-# 找到 dsh 包的位置，例如：
-#   npm/pnpm 全局安装：npm root -g / pnpm root -g
-#   或你的 dsh 部署目录下的 node_modules
-cp -r prompt-polish <dsh 的 node_modules 根目录>/
-```
-
-验证：
-
-```bash
-node -e "console.log(require.resolve('prompt-polish/package.json'))"
-# 应输出类似：...\node_modules\prompt-polish\package.json
-```
-
-### 步骤 3：注册到 profile 组合
-
-编辑 dsh 用户配置中的 `$DSH_HOME/profiles/web/cordis.patch.yml`（`DSH_HOME` 默认为 `~/.dsh`），在顶层数组追加：
-
-```yaml
-- insert:
-    - id: prompt-polish
-      name: prompt-polish
-```
-
-### 步骤 4：重启并刷新
+安装完成后重启 dsh 并刷新浏览器即可：
 
 1. 重启 dsh（`dsh --profile web`）
 2. 浏览器 **Ctrl + Shift + R** 硬刷新页面
 
 完成后：输入框工具行出现「✨ 润色」按钮，侧边栏底部出现「📋 日志」按钮。
+
+> **原理**：`dsh plugin add` 把参数转发给 pnpm（`github:user/repo` 是 pnpm 原生 spec），pnpm 拉取仓库并装进 profile 的 `node_modules`；随后 dsh 检测到本包声明了 `dsh.bundle.patch`，自动把它加入 `dsh.profile.bundles` 层栈。下次启动时，profile 加载本包的 `cordis.patch.yml` 插入 host 插件行（`/pp-api/*` 路由 + 提示词 agent），同时本包的 `dsh.client` 声明让浏览器半（`client.js`）被自动编排进启动图。
+
+### 本地开发安装
+
+开发时直接用本地路径，改完代码 `dsh plugin --profile web add ~/prompt-polish` 即可热更新（也可指向 `.`，dsh 会锚定到调用目录）：
+
+```bash
+dsh plugin --profile web add ~/prompt-polish
+# 或在仓库目录内：
+dsh plugin --profile web add .
+```
+
+### 验证安装
+
+```bash
+# 已加入 profile 的 bundle 层栈（看到 prompt-polish 即成功）
+node -e "console.log(require('js-yaml').load(require('fs').readFileSync(process.env.HOME+'/.dsh/profiles/web/package.json'))?.dsh?.profile?.bundles)"
+# 或查看 profile 依赖
+grep prompt-polish ~/.dsh/profiles/web/package.json
+```
 
 ## 🚀 使用
 
@@ -160,7 +154,7 @@ node -e "console.log(require.resolve('prompt-polish/package.json'))"
 
 | 现象 | 原因 / 处理 |
 | --- | --- |
-| 没有「✨ 润色」按钮 | 未刷新浏览器（Ctrl+Shift+R）；或组合行未生效（检查 `cordis.patch.yml`） |
+| 没有「✨ 润色」按钮 | 未刷新浏览器（Ctrl+Shift+R）；或未加入 bundle 层栈（运行 `dsh plugin --profile web add github:JOJO666888888/prompt-polish` 后重启 dsh） |
 | 按钮置灰不可点 | 输入框为空 |
 | 点击后无反应 | 打开日志面板查看错误；确认 `/pp-api/polish` 接口可访问（见下） |
 | 提示「无法解析可用的模型路由」 | dsh 未配置默认模型，在 Models 设置页选择模型后重试；或启用自定义 API 配置 |
@@ -181,9 +175,11 @@ curl http://127.0.0.1:8080/pp-api/config
 
 ## 🗑 卸载
 
-1. 删除 `cordis.patch.yml` 中追加的 `prompt-polish` insert 块
-2. 删除 `node_modules` 下的 `prompt-polish` 目录
-3. 重启 dsh 即可
+```bash
+dsh plugin --profile web remove prompt-polish
+```
+
+这会从 profile 依赖和 `dsh.profile.bundles` 层栈中一并移除（dsh 自动 reconcile），重启 dsh 即彻底卸载。自定义 API 配置残留在 `~/.dsh/plugins/prompt-polish.json`，需要时可手动删除。
 
 ## ⚙️ 模型路由
 

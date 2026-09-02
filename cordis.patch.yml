@@ -1,0 +1,16 @@
+# prompt-polish — DSH bundle patch.
+#
+# Inserts the host plugin row into the profile composition so the /pp-api/*
+# routes (polish / logs / config) and the prompt-engineering agent load on
+# harness start. The browser half (client.js) is composed into the boot graph
+# automatically via the package's dsh.client declaration once this row becomes
+# an active loader entry — no manual editing of the profile's cordis.patch.yml.
+#
+# Optional per-deployment overrides:
+#   config:
+#     # none today; apply(ctx) reads its runtime config from
+#     # ~/.dsh/plugins/prompt-polish.json (the custom API settings panel)
+
+- insert:
+    - id: prompt-polish
+      name: prompt-polish

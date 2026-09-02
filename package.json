@@ -1,29 +1,47 @@
 {
   "name": "prompt-polish",
-  "version": "1.0.0",
-  "private": true,
-  "description": "dsh 提示词优化助手：发送前调用专门的提示词工程 agent 润色/补全/扩写命令，支持重写、多轮改写与撤回（动态 client 插件，随 harness 启动自动加载）。",
+  "version": "1.1.0",
+  "description": "dsh 提示词优化助手：发送前调用专门的提示词工程 agent 润色/补全/扩写命令，支持重写、多轮改写与撤回（host + client 双半插件，dsh plugin add 一键安装，随 harness 启动自动加载）。",
   "keywords": [
     "dsh",
     "dsh-plugin",
+    "dsh-bundle",
     "prompt",
     "prompt-engineering",
     "prompt-optimizer",
     "llm"
   ],
   "license": "MIT",
+  "type": "commonjs",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-runtime"
       ],
       "platform": "web"
     }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-llm": "^0.1.1-rc.2",
+    "@deepseek-ai/cordis-plugin-timer": "^1.0.0",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.1-rc.2"
   }
 }
