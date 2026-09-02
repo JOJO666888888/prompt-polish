@@ -84,9 +84,11 @@ dsh plugin --profile web add .
 
 ```bash
 # 已加入 profile 的 bundle 层栈（看到 prompt-polish 即成功）
-node -e "console.log(require('js-yaml').load(require('fs').readFileSync(process.env.HOME+'/.dsh/profiles/web/package.json'))?.dsh?.profile?.bundles)"
-# 或查看 profile 依赖
+node -p "require(process.env.HOME+'/.dsh/profiles/web/package.json').dsh.profile.bundles"
+# 或查看 profile 依赖来源
 grep prompt-polish ~/.dsh/profiles/web/package.json
+# 接口自检（把端口换成你 dsh web 实际监听的端口）
+curl -s http://127.0.0.1:3080/pp-api/config
 ```
 
 ## 🚀 使用
@@ -162,14 +164,14 @@ grep prompt-polish ~/.dsh/profiles/web/package.json
 | 自定义 API 报错 HTTP 404 | API 地址或模型名称不正确，确认 base URL 和 model ID |
 | 自定义 API 连接超时 | 检查 API 地址是否可达、网络代理设置、防火墙 |
 
-接口自检：
+接口自检（把 `:3080` 换成你 dsh web 实际监听的端口，可用 `dsh --profile web --help` 或 webserver 配置查看）：
 
 ```bash
-curl -X POST http://127.0.0.1:8080/pp-api/polish -H "content-type: application/json" -d "{}"
+curl -X POST http://127.0.0.1:3080/pp-api/polish -H "content-type: application/json" -d "{}"
 # 期望返回 500 + {"error":"prompt-polish: 输入文本为空"}（说明接口已注册）
-curl http://127.0.0.1:8080/pp-api/logs
+curl http://127.0.0.1:3080/pp-api/logs
 # 期望返回 {"logs":[...],"health":{...}}
-curl http://127.0.0.1:8080/pp-api/config
+curl http://127.0.0.1:3080/pp-api/config
 # 期望返回 {"customApi":{"enabled":false,"baseUrl":"https://api.openai.com/v1","apiKey":"","hasApiKey":false,"model":"gpt-4o","maxTokens":8192}}
 ```
 
