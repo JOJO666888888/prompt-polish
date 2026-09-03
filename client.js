@@ -1,12 +1,17 @@
 /**
  * prompt-polish client half — 浏览器 bundle（window.__ModuleLoader__.load 格式）。
  *
- * - 「✨ 润色」按钮   → conversation.input.left（输入框工具行）
+ * - 「✨ 润色」按钮   → sidebar.footer.action（侧边栏底部，排在「📋 日志」上方）
  * - 优化面板          → conversation.input.dock（输入框上方）
  * - 「📋 日志」按钮   → sidebar.footer.action（侧边栏底部）
  * - 日志浮层          → shell.overlay（右上角浮动面板）
  * - 设置专区          → settings.section（dsh 设置面板内的独立分区）
  * - host 通信         → 同源 fetch：POST /pp-api/polish、GET /pp-api/logs、GET/POST /pp-api/config
+ *
+ * 注：sidebar.footer.action 处于 root 域，dsh 不向其传入输入框草稿（useInput/
+ * inputActions 是 session 域的）。侧边栏润色按钮通过 DOM 桥接读写 composer 的
+ * <textarea>：读用 .value，写用原生 value setter + dispatch('input') 触发
+ * React onChange → setDraft（textarea 为受控组件，链路已验证）。
  */
 window.__ModuleLoader__.load({
   id: 'prompt-polish',
@@ -39,8 +44,10 @@ window.__ModuleLoader__.load({
       '.pp-btn.primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
       '.pp-tip{font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.pp-logbtn{padding:2px 8px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.6;cursor:pointer;white-space:nowrap}',
-      '.pp-logbtn:hover{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}',
+      '.pp-logbtn:hover:not(:disabled){color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}',
       '.pp-logbtn.active{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}',
+      '.pp-logbtn:disabled{opacity:0.45;cursor:default}',
+      '.pp-logbtn.pp-busy-btn{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);opacity:1;cursor:progress}',
       '.pp-logpanel{position:fixed;top:12px;right:12px;width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);box-shadow:0 8px 30px rgba(0,0,0,.25);pointer-events:auto}',
       '.pp-loghead{display:flex;align-items:center;gap:6px}',
       '.pp-logtitle{font-size:13px;font-weight:600;flex:1}',
@@ -251,6 +258,39 @@ window.__ModuleLoader__.load({
       }
       store.busy = false
       emit()
+    }
+
+    /* ── DOM 桥接：侧边栏按钮读写输入框草稿 ───────────────────── */
+    /* sidebar.footer.action 处于 root 域，dsh 不向其传递 useInput /
+       inputActions（输入状态是 session 域的）。因此侧边栏的润色按钮通过
+       DOM 直接读写 composer 的 <textarea>：读取用 .value；写回用原生
+       value setter + dispatch('input')，触发 React onChange →
+       keyboard.setDraft，与受控组件链路一致（已验证 textarea 是受控的、
+       onChange 读取 e.target.value 调 setDraft）。data-phase 是稳定锚点。 */
+    function findComposerTextarea() {
+      /* 优先用语义化 data 属性（跨版本稳定）；回退到首个可见可编辑 textarea */
+      var ta = document.querySelector('textarea[data-phase]')
+      if (ta && !ta.disabled) return ta
+      var list = document.querySelectorAll('textarea')
+      for (var i = 0; i < list.length; i += 1) {
+        var el = list[i]
+        if (!el.disabled && !el.readOnly && el.offsetParent !== null) return el
+      }
+      return null
+    }
+    function writeDraftToTextarea(ta, text) {
+      if (!ta) { clog('warn', 'DOM 写回：未找到 composer textarea'); return }
+      try {
+        var proto = (typeof window !== 'undefined' && window.HTMLTextAreaElement) ? window.HTMLTextAreaElement.prototype : null
+        var desc = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null
+        if (desc && typeof desc.set === 'function') desc.set.call(ta, text)
+        else ta.value = text
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        try { ta.focus(); ta.setSelectionRange(text.length, text.length) } catch (e) {}
+        clog('info', 'DOM 写回输入框: 长度=' + text.length)
+      } catch (err) {
+        clog('error', 'DOM 写回失败: ' + ((err && err.message) ? err.message : String(err)))
+      }
     }
 
     function undo() {
@@ -613,6 +653,55 @@ window.__ModuleLoader__.load({
       return React.createElement('button', { className: 'pp-logbtn' + (store.logOpen ? ' active' : ''), onClick: onClick, title: '提示词优化插件日志（含 host/client 诊断）' }, wide ? '📋 日志' : '📋')
     }
 
+    /* 侧边栏润色触发器（root 域）：靠 DOM 桥接读写输入框草稿。
+       监听 composer textarea 的 input 事件以响应草稿有无，更新禁用态；
+       点击时实时读取 DOM 草稿并润色，结果用原生事件写回。 */
+    function SidebarTriggerView(props) {
+      useStoreVersion()
+      var wide = !!props.wide
+      var draftState = React.useState('')
+      var draft = draftState[0]
+      var setDraftState = draftState[1]
+      React.useEffect(function () {
+        function read() {
+          var ta = findComposerTextarea()
+          setDraftState(function (prev) { var v = ta ? (ta.value || '') : ''; return prev === v ? prev : v })
+        }
+        read()
+        function onInput(e) {
+          var t = e.target
+          if (t && typeof t.matches === 'function' && t.matches('textarea[data-phase]')) {
+            setDraftState(t.value || '')
+          }
+        }
+        function onFocusIn(e) {
+          if (e.target && typeof e.target.matches === 'function' && e.target.matches('textarea[data-phase]')) read()
+        }
+        document.addEventListener('input', onInput, true)
+        document.addEventListener('focusin', onFocusIn, true)
+        /* textarea 可能延迟挂载 / 切换会话后重建，轮询兜底 */
+        var iv = setInterval(read, 2000)
+        return function () {
+          document.removeEventListener('input', onInput, true)
+          document.removeEventListener('focusin', onFocusIn, true)
+          clearInterval(iv)
+        }
+      }, [])
+      var canStart = !store.busy && draft.trim().length > 0
+      var onClick = function () {
+        var ta = findComposerTextarea()
+        var d = ta ? (ta.value || '') : ''
+        if (!d.trim()) {
+          clog('warn', '侧边栏润色：输入框为空' + (ta ? '' : '（未找到 textarea）'))
+          return
+        }
+        clog('info', '侧边栏润色点击: draft=' + d.slice(0, 40) + (d.length > 40 ? '…' : ''))
+        runPolish(d.trim(), 1, '', 'session', function (text) { writeDraftToTextarea(ta, text) })
+      }
+      var title = canStart ? '调用提示词优化 agent 润色当前草稿（支持重写、多轮改写、撤回）' : '请先在输入框输入内容'
+      return React.createElement('button', { className: 'pp-logbtn' + (store.busy ? ' pp-busy-btn' : ''), onClick: onClick, disabled: !canStart, title: title }, wide ? '✨ 润色' : '✨')
+    }
+
     function LogPanelView(props) {
       useStoreVersion()
       if (!store.logOpen) return null
@@ -678,12 +767,6 @@ window.__ModuleLoader__.load({
       })
 
       var slots = ctx.slots
-      slots.inject('conversation.input.left', function () {
-        clog('info', 'slots 注入: conversation.input.left')
-        return slots.register({ name: 'conversation.input.left', id: 'prompt-polish.trigger', order: 25, label: '润色' }, function (props) {
-          return React.createElement(TriggerView, props)
-        })
-      })
       slots.inject('conversation.input.dock', function () {
         clog('info', 'slots 注入: conversation.input.dock')
         return slots.register({ name: 'conversation.input.dock', id: 'prompt-polish.panel', order: 15, label: '提示词优化' }, function (props) {
@@ -691,7 +774,13 @@ window.__ModuleLoader__.load({
         })
       })
       slots.inject('sidebar.footer.action', function () {
-        clog('info', 'slots 注入: sidebar.footer.action')
+        clog('info', 'slots 注入: sidebar.footer.action (润色)')
+        return slots.register({ name: 'sidebar.footer.action', id: 'prompt-polish.trigger', order: 25, label: '润色' }, function (props) {
+          return React.createElement(SidebarTriggerView, props)
+        })
+      })
+      slots.inject('sidebar.footer.action', function () {
+        clog('info', 'slots 注入: sidebar.footer.action (日志)')
         return slots.register({ name: 'sidebar.footer.action', id: 'prompt-polish.logs', order: 30, label: '日志' }, function (props) {
           return React.createElement(LogButtonView, props)
         })
